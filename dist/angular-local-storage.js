@@ -1,6 +1,6 @@
 /**
  * An Angular module that gives you access to the browsers local storage
- * @version v0.1.5 - 2014-11-04
+ * @version v0.1.5 - 2015-05-20
  * @link https://github.com/grevory/angular-local-storage
  * @author grevory <greg@gregpike.ca>
  * @license MIT License, http://www.opensource.org/licenses/MIT
@@ -47,6 +47,8 @@ angularLocalStorage.provider('localStorageService', function() {
     expiry: 30,
     path: '/'
   };
+
+  this.cookieFallbackEnabled = true;
 
   // Send signals for each of the following actions?
   this.notify = {
@@ -132,8 +134,10 @@ angularLocalStorage.provider('localStorageService', function() {
 
         return supported;
       } catch (e) {
-        storageType = 'cookie';
-        $rootScope.$broadcast('LocalStorageModule.notification.error', e.message);
+        if(self.cookieFallbackEnabled) {
+          storageType = 'cookie';
+          $rootScope.$broadcast('LocalStorageModule.notification.error', e.message);
+        }
         return false;
       }
     }());
@@ -172,10 +176,24 @@ angularLocalStorage.provider('localStorageService', function() {
           $rootScope.$broadcast('LocalStorageModule.notification.setitem', {key: key, newvalue: value, storageType: self.storageType});
         }
       } catch (e) {
-        $rootScope.$broadcast('LocalStorageModule.notification.error', e.message);
-        return addToCookies(key, value);
+        if(self.cookieFallbackEnabled) {
+          $rootScope.$broadcast('LocalStorageModule.notification.error', e.message);
+          return addToCookies(key, value);
+        }
+        return false;
       }
       return true;
+    };
+
+    // Setter for cookie config
+    var enableCookieFallback = function() {
+      self.cookieFallbackEnabled = true;
+      return this;
+    };
+
+    var disableCookieFallback = function() {
+      self.cookieFallbackEnabled = false;
+      return this;
     };
 
     // Directly get a value from local storage
@@ -443,6 +461,8 @@ angularLocalStorage.provider('localStorageService', function() {
       length: lengthOfLocalStorage,
       cookie: {
         isSupported: browserSupportsCookies,
+        fallbackEnable: enableCookieFallback,
+        fallbackDisable: disableCookieFallback,
         set: addToCookies,
         add: addToCookies, //DEPRECATED
         get: getFromCookies,
